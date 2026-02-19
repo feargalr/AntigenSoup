@@ -2,7 +2,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-DAEDALUS_VERSION="0.3.2"
+DAEDALUS_VERSION="0.3.3"
 
 
 #======================#
@@ -52,6 +52,7 @@ MEM_GB=8
 EPI_FASTA=""
 READ1=""
 READ2=""
+SCAFFOLDS_INPUT=""
 FASTP_DIR="fastp_output"
 
 # Help message
@@ -61,25 +62,30 @@ Daedalus Pipeline
 
 Usage:
   daedalus -e <epitope_fasta> -n <num_cores> -m <memory_gb> [--sra <SRA_ID>] [--read1 <read1.fastq.gz> --read2 <read2.fastq.gz>]
+  daedalus -e <epitope_fasta> -n <num_cores> --scaffolds <scaffolds.fasta>
 
 Flags:
-  -e, --epitopes      Path to epitope FASTA file (required)
-  -n, --num-cores     Number of cores (default: 1)
-  -m, --memory        Memory in GB (default: 8)
-  --sra <SRA_ID>      SRA accession ID (optional)
-  --read1 <file>      Path to local R1 FASTQ file (required if no SRA)
-  --read2 <file>      Path to local R2 FASTQ file (required if no SRA)
-  --nohuman-db <path>   Path to nohuman database (or set $NOHUMAN_DB)
-  -h, --help          Show this help message
-  -V, --version       Print version and exit
+  -e, --epitopes        Path to epitope FASTA file (required)
+  -n, --num-cores       Number of cores (default: 1)
+  -m, --memory          Memory in GB (default: 8)
+  --sra <SRA_ID>        SRA accession ID (optional)
+  --read1 <file>        Path to local R1 FASTQ file (required if no SRA)
+  --read2 <file>        Path to local R2 FASTQ file (required if no SRA)
+  --scaffolds <file>    Path to pre-assembled scaffolds FASTA (skips QC, host removal, and assembly)
+  --nohuman-db <path>   Path to nohuman database (or set \$NOHUMAN_DB)
+  -h, --help            Show this help message
+  -V, --version         Print version and exit
 
 Notes:
 - If --sra is provided, local --read1 and --read2 are ignored.
 - If no SRA is provided, both --read1 and --read2 must be specified.
+- If --scaffolds is provided, all upstream steps (fastp, nohuman, SPAdes) are skipped.
+  --nohuman-db is not required in this mode.
 
 Examples:
   daedalus --sra SRR123456 -e epitopes.fasta -n 32 -m 64
   daedalus --read1 sample_1.fastq.gz --read2 sample_2.fastq.gz -e epitopes.fasta -n 16 -m 32
+  daedalus --scaffolds my_assembly.fasta -e epitopes.fasta -n 16
 "
 }
 
@@ -92,6 +98,7 @@ while [[ "$#" -gt 0 ]]; do
         --sra) SRA_ID="$2"; shift ;;
         --read1) READ1="$2"; shift ;;
         --read2) READ2="$2"; shift ;;
+        --scaffolds) SCAFFOLDS_INPUT="$2"; shift ;;
         --nohuman-db) NOHUMAN_DB="$2"; shift ;;
         -h|--help) show_help; exit 0 ;;
         -V|--version) echo "daedalus ${DAEDALUS_VERSION}"; exit 0 ;;
@@ -110,24 +117,31 @@ if [ -z "$EPI_FASTA" ]; then
     exit 1
 fi
 
-if [ -n "$SRA_ID" ]; then
+if [ -n "$SCAFFOLDS_INPUT" ]; then
+    if [[ ! -f "$SCAFFOLDS_INPUT" ]]; then
+        echo "ERROR: Scaffolds file not found: $SCAFFOLDS_INPUT"
+        exit 1
+    fi
+    echo "Using pre-assembled scaffolds: $SCAFFOLDS_INPUT (skipping QC, host removal, and assembly)"
+elif [ -n "$SRA_ID" ]; then
     echo "Using SRA accession: $SRA_ID"
 elif [ -n "$READ1" ] && [ -n "$READ2" ]; then
     echo "Using local FASTQ files: $READ1, $READ2"
 else
-    echo "ERROR: Provide either --sra <SRA_ID> or both --read1 and --read2."
+    echo "ERROR: Provide either --sra <SRA_ID>, both --read1 and --read2, or --scaffolds <file>."
     show_help
     exit 1
 fi
 
-
-if [[ -z "${NOHUMAN_DB}" ]]; then
-  echo "ERROR: nohuman DB not set. Use --nohuman-db /path/to/db or export NOHUMAN_DB=/path/to/db" >&2
-  exit 1
-fi
-if [[ ! -e "${NOHUMAN_DB}" ]]; then
-  echo "ERROR: nohuman DB not found at: ${NOHUMAN_DB}" >&2
-  exit 1
+if [[ -z "$SCAFFOLDS_INPUT" ]]; then
+  if [[ -z "${NOHUMAN_DB:-}" ]]; then
+    echo "ERROR: nohuman DB not set. Use --nohuman-db /path/to/db or export NOHUMAN_DB=/path/to/db" >&2
+    exit 1
+  fi
+  if [[ ! -e "${NOHUMAN_DB}" ]]; then
+    echo "ERROR: nohuman DB not found at: ${NOHUMAN_DB}" >&2
+    exit 1
+  fi
 fi
 
 
@@ -143,7 +157,11 @@ have() { [[ -s "$1" ]]; }   # file exists and non-empty
 # ---------------------------
 # Determine sample name early (for consistent output naming)
 # ---------------------------
-if [[ -n "$SRA_ID" ]]; then
+if [[ -n "$SCAFFOLDS_INPUT" ]]; then
+  # derive from scaffolds filename: my_assembly.fasta -> my_assembly
+  BASE="$(basename "${SCAFFOLDS_INPUT}")"
+  SAMPLE="${BASE%%.*}"
+elif [[ -n "$SRA_ID" ]]; then
   SAMPLE="$SRA_ID"
 else
   # derive from READ1 basename: foo_1.fastq.gz -> foo
@@ -152,11 +170,30 @@ else
 fi
 
 # ---------------------------
+# Scaffolds input mode: skip all upstream steps
+# ---------------------------
+if [[ -n "$SCAFFOLDS_INPUT" ]]; then
+  SPADES_DIR="${SAMPLE}_output"
+  SCAFFOLDS_FASTA="${SPADES_DIR}/scaffolds.fasta"
+  mkdir -p "$SPADES_DIR"
+
+  if ! have "$SCAFFOLDS_FASTA"; then
+    msg "Copying scaffolds to output directory..."
+    cp "$SCAFFOLDS_INPUT" "$SCAFFOLDS_FASTA"
+  else
+    msg "Found ${SCAFFOLDS_FASTA}; skipping copy."
+  fi
+fi
+
+# ---------------------------
 # Inputs: SRA download (skip if already present)
 # ---------------------------
 RAW_R1=""; RAW_R2=""; RAW_SE=""
 
-if [[ -n "$SRA_ID" ]]; then
+if [[ -n "$SCAFFOLDS_INPUT" ]]; then
+  msg "Scaffolds mode: skipping SRA download, QC, host removal, and assembly."
+
+elif [[ -n "$SRA_ID" ]]; then
   mkdir -p sra_fastq
 
   # Accept either gz or plain fastq from prior runs
@@ -202,112 +239,117 @@ else
   RAW_R1="$READ1"; RAW_R2="$READ2"
 fi
 
-# ---------------------------
-# Expected outputs for fastp + nohuman (we will reuse if nohuman outputs exist)
-# ---------------------------
-CLEAN_R1="${FASTP_DIR}/${SAMPLE}_R1.clean.fq.gz"
-CLEAN_R2="${FASTP_DIR}/${SAMPLE}_R2.clean.fq.gz"
-CLEAN_SE="${FASTP_DIR}/${SAMPLE}.clean.fq.gz"
+if [[ -z "$SCAFFOLDS_INPUT" ]]; then
 
-NOHUMAN_R1="${FASTP_DIR}/${SAMPLE}_R1.nohuman.fq.gz"
-NOHUMAN_R2="${FASTP_DIR}/${SAMPLE}_R2.nohuman.fq.gz"
-NOHUMAN_SE="${FASTP_DIR}/${SAMPLE}.nohuman.fq.gz"
-KRAKEN_REPORT="${FASTP_DIR}/${SAMPLE}.nohuman.kraken.report"
+  # ---------------------------
+  # Expected outputs for fastp + nohuman (we will reuse if nohuman outputs exist)
+  # ---------------------------
+  CLEAN_R1="${FASTP_DIR}/${SAMPLE}_R1.clean.fq.gz"
+  CLEAN_R2="${FASTP_DIR}/${SAMPLE}_R2.clean.fq.gz"
+  CLEAN_SE="${FASTP_DIR}/${SAMPLE}.clean.fq.gz"
 
-REPORT_HTML="${FASTP_DIR}/${SAMPLE}.fastp.html"
-REPORT_JSON="${FASTP_DIR}/${SAMPLE}.fastp.json"
+  NOHUMAN_R1="${FASTP_DIR}/${SAMPLE}_R1.nohuman.fq.gz"
+  NOHUMAN_R2="${FASTP_DIR}/${SAMPLE}_R2.nohuman.fq.gz"
+  NOHUMAN_SE="${FASTP_DIR}/${SAMPLE}.nohuman.fq.gz"
+  KRAKEN_REPORT="${FASTP_DIR}/${SAMPLE}.nohuman.kraken.report"
 
-# ---------------------------
-# nohuman step (skip if already done)
-#   If nohuman outputs exist, we don't need to rerun fastp either.
-# ---------------------------
-if have "$NOHUMAN_R1" && have "$NOHUMAN_R2"; then
-  msg "nohuman outputs found (PE); skipping fastp+nohuman."
-elif have "$NOHUMAN_SE"; then
-  msg "nohuman output found (SE); skipping fastp+nohuman."
-else
-  # Run fastp first (PE or SE)
-  if [[ -n "${RAW_R1}" && -n "${RAW_R2}" ]]; then
-    msg "Running fastp (PE)..."
-    fastp -w "${NUM_CORES}" \
-          -i "${RAW_R1}" -I "${RAW_R2}" \
-          -o "${CLEAN_R1}" -O "${CLEAN_R2}" \
-          --detect_adapter_for_pe \
-          --qualified_quality_phred 15 \
-          --length_required 50 \
-          -h "${REPORT_HTML}" -j "${REPORT_JSON}"
+  REPORT_HTML="${FASTP_DIR}/${SAMPLE}.fastp.html"
+  REPORT_JSON="${FASTP_DIR}/${SAMPLE}.fastp.json"
 
-    msg "Running nohuman (PE)..."
-    nohuman \
-      -t "${NUM_CORES}" \
-      -D "${NOHUMAN_DB}" \
-      -o "${NOHUMAN_R1}" \
-      -O "${NOHUMAN_R2}" \
-      -r "${KRAKEN_REPORT}" \
-      "${CLEAN_R1}" "${CLEAN_R2}"
-
-  elif [[ -n "${RAW_SE}" ]]; then
-    msg "Running fastp (SE)..."
-    fastp -w "${NUM_CORES}" \
-          -i "${RAW_SE}" \
-          -o "${CLEAN_SE}" \
-          --qualified_quality_phred 15 --length_required 50 \
-          -h "${REPORT_HTML}" -j "${REPORT_JSON}"
-
-    msg "Running nohuman (SE)..."
-    nohuman \
-      -t "${NUM_CORES}" \
-      -D "${NOHUMAN_DB}" \
-      -o "${NOHUMAN_SE}" \
-      -r "${KRAKEN_REPORT}" \
-      "${CLEAN_SE}"
-  else
-    echo "ERROR: Input detection failed before fastp/nohuman."
-    exit 1
-  fi
-fi
-
-# ---------------------------
-# MetaSPAdes (skip if scaffolds.fasta already present)
-# ---------------------------
-SPADES_DIR="spades_output"
-SCAFFOLDS_FASTA="${SPADES_DIR}/scaffolds.fasta"
-
-if have "$SCAFFOLDS_FASTA"; then
-  msg "Found ${SCAFFOLDS_FASTA}; skipping MetaSPAdes."
-else
-  msg "Running MetaSPAdes..."
-  mkdir -p "$SPADES_DIR"
-
+  # ---------------------------
+  # nohuman step (skip if already done)
+  #   If nohuman outputs exist, we don't need to rerun fastp either.
+  # ---------------------------
   if have "$NOHUMAN_R1" && have "$NOHUMAN_R2"; then
-    spades.py --meta \
-      -1 "${NOHUMAN_R1}" \
-      -2 "${NOHUMAN_R2}" \
-      -o "$SPADES_DIR" \
-      -t "${NUM_CORES}" \
-      --memory "${MEM_GB}"
+    msg "nohuman outputs found (PE); skipping fastp+nohuman."
   elif have "$NOHUMAN_SE"; then
-    spades.py --meta \
-      -s "${NOHUMAN_SE}" \
-      -o "$SPADES_DIR" \
-      -t "${NUM_CORES}" \
-      --memory "${MEM_GB}"
+    msg "nohuman output found (SE); skipping fastp+nohuman."
   else
-    echo "ERROR: No nohuman reads available for SPAdes."
-    exit 1
+    # Run fastp first (PE or SE)
+    if [[ -n "${RAW_R1}" && -n "${RAW_R2}" ]]; then
+      msg "Running fastp (PE)..."
+      fastp -w "${NUM_CORES}" \
+            -i "${RAW_R1}" -I "${RAW_R2}" \
+            -o "${CLEAN_R1}" -O "${CLEAN_R2}" \
+            --detect_adapter_for_pe \
+            --qualified_quality_phred 15 \
+            --length_required 50 \
+            -h "${REPORT_HTML}" -j "${REPORT_JSON}"
+
+      msg "Running nohuman (PE)..."
+      nohuman \
+        -t "${NUM_CORES}" \
+        -D "${NOHUMAN_DB}" \
+        -o "${NOHUMAN_R1}" \
+        -O "${NOHUMAN_R2}" \
+        -r "${KRAKEN_REPORT}" \
+        "${CLEAN_R1}" "${CLEAN_R2}"
+
+    elif [[ -n "${RAW_SE}" ]]; then
+      msg "Running fastp (SE)..."
+      fastp -w "${NUM_CORES}" \
+            -i "${RAW_SE}" \
+            -o "${CLEAN_SE}" \
+            --qualified_quality_phred 15 --length_required 50 \
+            -h "${REPORT_HTML}" -j "${REPORT_JSON}"
+
+      msg "Running nohuman (SE)..."
+      nohuman \
+        -t "${NUM_CORES}" \
+        -D "${NOHUMAN_DB}" \
+        -o "${NOHUMAN_SE}" \
+        -r "${KRAKEN_REPORT}" \
+        "${CLEAN_SE}"
+    else
+      echo "ERROR: Input detection failed before fastp/nohuman."
+      exit 1
+    fi
   fi
 
-  # sanity: fail early if spades didn't produce scaffolds
-  if [[ ! -s "$SCAFFOLDS_FASTA" ]]; then
-    echo "ERROR: SPAdes did not produce scaffolds.fasta as expected."
-    exit 1
+  # ---------------------------
+  # MetaSPAdes (skip if scaffolds.fasta already present)
+  # ---------------------------
+  SPADES_DIR="spades_output"
+  SCAFFOLDS_FASTA="${SPADES_DIR}/scaffolds.fasta"
+
+  if have "$SCAFFOLDS_FASTA"; then
+    msg "Found ${SCAFFOLDS_FASTA}; skipping MetaSPAdes."
+  else
+    msg "Running MetaSPAdes..."
+    mkdir -p "$SPADES_DIR"
+
+    if have "$NOHUMAN_R1" && have "$NOHUMAN_R2"; then
+      spades.py --meta \
+        -1 "${NOHUMAN_R1}" \
+        -2 "${NOHUMAN_R2}" \
+        -o "$SPADES_DIR" \
+        -t "${NUM_CORES}" \
+        --memory "${MEM_GB}"
+    elif have "$NOHUMAN_SE"; then
+      spades.py --meta \
+        -s "${NOHUMAN_SE}" \
+        -o "$SPADES_DIR" \
+        -t "${NUM_CORES}" \
+        --memory "${MEM_GB}"
+    else
+      echo "ERROR: No nohuman reads available for SPAdes."
+      exit 1
+    fi
+
+    # sanity: fail early if spades didn't produce scaffolds
+    if [[ ! -s "$SCAFFOLDS_FASTA" ]]; then
+      echo "ERROR: SPAdes did not produce scaffolds.fasta as expected."
+      exit 1
+    fi
   fi
-fi
+
+fi  # end [[ -z "$SCAFFOLDS_INPUT" ]]
 
 # ---------------------------
 # Prodigal-GV (skip if proteins.faa already present)
 # ---------------------------
 PROTEINS_FAA="${SPADES_DIR}/proteins.faa"
+msg "Gene prediction output directory: ${SPADES_DIR}/"
 
 if have "$PROTEINS_FAA"; then
   msg "Found ${PROTEINS_FAA}; skipping Prodigal-GV."

@@ -1,5 +1,5 @@
 # Daedalus
-**Version:** 0.3.2
+**Version:** 0.3.3
 
 Like its namesake, Daedalus builds things. This pipeline was built for metagenomic assembly and the identification of cross-reactive epitopes. Daedalus is a wrapper pipeline that orchestrates several established bioinformatics tools, and so we *strongly encourage* users cite the underlying software components appropriately in any resulting publications.
 
@@ -8,6 +8,40 @@ To efficiently detect these matches at scale, Daedalus uses the Aho–Corasick a
 
 ## **Database**
 We provide a fasta file of epitope sequences from the the Immune Epitope Database (IEDB) in late 2025 for ease of use. This is not the entire database but is filtered for human, or human related pathogens. Uncompress before use. It is small (~13MB uncompressed).
+
+## **Epitope Matching Strategy**
+
+### Exact matching at scale
+At the scale Daedalus operates — hundreds of thousands of epitopes searched across large metagenomic datasets — the epitope search uses **exact string matching only**. This is a deliberate design choice. Short peptides (8–16 aa) are particularly prone to false positives under mismatch-tolerant search: allowing even 1–2 substitutions in an 8-mer permits 12–25% sequence divergence, which at metagenomic scale produces an unacceptable number of spurious hits. Exact matching is unambiguous, interpretable, and fast.
+
+### Variant search for specific epitopes
+We recognise that users may wish to search for near-identical variants of specific epitopes of interest — for example, to identify microbial mimics of a known T cell epitope that differ by one or two residues. For these targeted use cases, Daedalus provides `gen_variants.py`, a utility that generates a FASTA file of all sequences within a given Hamming distance of one or more query epitopes. This variant FASTA can then be used directly as input to `ac_match.py` for exact matching, with full provenance encoded in the sequence headers.
+
+This approach is intentionally kept as a separate, opt-in step rather than a built-in mismatch mode. Variant expansion should only be applied to specific epitopes a user has prior reason to care about — not applied globally — in order to keep false positive rates under control.
+
+**Generating variants for a single epitope:**
+```bash
+python gen_variants.py SIINFEKL --mismatches 1
+# Output: SIINFEKL_variants_d1.fasta
+```
+
+**Generating variants from a FASTA of epitopes of interest:**
+```bash
+python gen_variants.py my_epitopes.fasta --mismatches 1
+# Output: my_epitopes_variants_d1.fasta
+```
+
+**Then search with ac_match as normal:**
+```bash
+python ac_match.py --epitopes SIINFEKL_variants_d1.fasta --proteins my_proteins.fasta --out hits.tsv
+```
+
+Each matched variant is fully traceable via the header format `>original_epitope|d<N>|substitutions|original_sequence`, for example:
+```
+>SIINFEKL|d1|S1C|SIINFEKL
+CIINFEKL
+```
+This encodes the original epitope name, the Hamming distance, the exact substitutions (position and amino acid change), and the original sequence — so downstream analysis can easily filter by distance or identify which positions tolerate substitution.
 
 ## **Overview**
 **Daedalus** assembles metagenomes, predicts genes, and identifies cross-reactive epitopes from metagenomic data. It integrates:
@@ -67,6 +101,7 @@ cp daedalus "$CONDA_PREFIX/bin/daedalus"
 conda activate acmatch
 mkdir -p "$CONDA_PREFIX/share/daedalus"
 cp scripts/ac_match.py "$CONDA_PREFIX/share/daedalus/ac_match.py"
+cp scripts/gen_variants.py "$CONDA_PREFIX/share/daedalus/gen_variants.py"
 
 
 #Third.For multi-threaded gene prediction we use the parallel-prodigal-gv.py
@@ -94,25 +129,31 @@ gunzip iedb.fasta.gz
 ```bash
 Usage:
   daedalus -e <epitope_fasta> -n <num_cores> -m <memory_gb> [--sra <SRA_ID>] [--read1 <read1.fastq.gz> --read2 <read2.fastq.gz>]
+  daedalus -e <epitope_fasta> -n <num_cores> --scaffolds <scaffolds.fasta>
 
 Flags:
-  -e, --epitopes      Path to epitope FASTA file (required)
-  -n, --num-cores     Number of cores (default: 1)
-  -m, --memory        Memory in GB (default: 8)
-  --sra <SRA_ID>      SRA accession ID (optional)
-  --read1 <file>      Path to local R1 FASTQ file (required if no SRA)
-  --read2 <file>      Path to local R2 FASTQ file (required if no SRA)
-  --nohuman-db <path>   Path to nohuman database (or set $NOHUMAN_DB)
-  -h, --help          Show this help message
-  -V, --version       Print version and exit
+  -e, --epitopes        Path to epitope FASTA file (required)
+  -n, --num-cores       Number of cores (default: 1)
+  -m, --memory          Memory in GB (default: 8)
+  --sra <SRA_ID>        SRA accession ID (optional)
+  --read1 <file>        Path to local R1 FASTQ file (required if no SRA)
+  --read2 <file>        Path to local R2 FASTQ file (required if no SRA)
+  --scaffolds <file>    Path to pre-assembled scaffolds FASTA (skips QC, host removal, and assembly)
+  --nohuman-db <path>   Path to nohuman database (or set $NOHUMAN_DB; not required with --scaffolds)
+  -h, --help            Show this help message
+  -V, --version         Print version and exit
 
 Notes:
 - If --sra is provided, local --read1 and --read2 are ignored.
 - If no SRA is provided, both --read1 and --read2 must be specified.
+- If --scaffolds is provided, all upstream steps (fastp, nohuman, SPAdes) are skipped.
+  Gene prediction and epitope search run directly on the provided scaffolds.
+  Output is written to <scaffolds_basename>_output/.
 
 Examples:
   daedalus --sra SRR123456 -e epitopes.fasta -n 32 -m 64
   daedalus --read1 sample_1.fastq.gz --read2 sample_2.fastq.gz -e epitopes.fasta -n 16 -m 32
+  daedalus --scaffolds my_assembly.fasta -e epitopes.fasta -n 16
 ```
 
 ## **Inputs**

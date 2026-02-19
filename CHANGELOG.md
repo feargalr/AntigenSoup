@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.3
+- Added gen variants script, scaffolds as input. 
+
 ## v0.3.2
 - Added skip steps if output files already present 
 
