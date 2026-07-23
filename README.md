@@ -1,10 +1,10 @@
-# Daedalus
+# AntigenSoup
 **Version:** 0.3.3
 
-Like its namesake, Daedalus builds things. This pipeline was built for metagenomic assembly and the identification of cross-reactive epitopes. Daedalus is a wrapper pipeline that orchestrates several established bioinformatics tools, and so we *strongly encourage* users cite the underlying software components appropriately in any resulting publications.
+This pipeline was built for metagenomic assembly and the identification of cross-reactive epitopes in the human microbiome. AntigenSoup is a wrapper pipeline that orchestrates several established bioinformatics tools, and so we *strongly encourage* users cite the underlying software components appropriately in any resulting publications.
 
-Daedalus searches for short, exact peptide matches between predicted microbial proteins and known epitopes, typically in the 8–15 amino acid range. This reflects the biology of antigen presentation, as MHC class I epitopes are usually 8–11 aa, while MHC class II epitopes contain shorter core motifs. T cell cross-reactivity can arise from identical short peptides embedded within otherwise unrelated proteins. For this reason, epitope detection is treated as a string-matching problem, rather than a homology search.
-To efficiently detect these matches at scale, Daedalus uses the Aho–Corasick algorithm, which enables simultaneous, exact matching of millions of epitope sequences against large protein databases in a single pass.
+AntigenSoup searches for short, exact peptide matches between predicted microbial proteins and known epitopes, typically in the 8–15 amino acid range. This reflects the biology of antigen presentation, as MHC class I epitopes are usually 8–11 aa, while MHC class II epitopes contain shorter core motifs. T cell cross-reactivity can arise from identical short peptides embedded within otherwise unrelated proteins. For this reason, epitope detection is treated as a string-matching problem, rather than a homology search.
+To efficiently detect these matches at scale, AntigenSoup uses the Aho–Corasick algorithm, which enables simultaneous, exact matching of millions of epitope sequences against large protein databases in a single pass.
 
 ## **Database**
 We provide a fasta file of epitope sequences from the the Immune Epitope Database (IEDB) in late 2025 for ease of use. This is not the entire database but is filtered for human, or human related pathogens. Uncompress before use. It is small (~13MB uncompressed).
@@ -12,10 +12,10 @@ We provide a fasta file of epitope sequences from the the Immune Epitope Databas
 ## **Epitope Matching Strategy**
 
 ### Exact matching at scale
-At the scale Daedalus operates — hundreds of thousands of epitopes searched across large metagenomic datasets — the epitope search uses **exact string matching only**. This is a deliberate design choice. Short peptides (8–16 aa) are particularly prone to false positives under mismatch-tolerant search: allowing even 1–2 substitutions in an 8-mer permits 12–25% sequence divergence, which at metagenomic scale produces an unacceptable number of spurious hits. Exact matching is unambiguous, interpretable, and fast.
+At the scale AntigenSoup operates — hundreds of thousands of epitopes searched across large metagenomic datasets — the epitope search uses **exact string matching only**. This is a deliberate design choice. Short peptides (8–16 aa) are particularly prone to false positives under mismatch-tolerant search: allowing even 1–2 substitutions in an 8-mer permits 12–25% sequence divergence, which at metagenomic scale produces an unacceptable number of spurious hits. Exact matching is unambiguous, interpretable, and fast.
 
 ### Variant search for specific epitopes
-We recognise that users may wish to search for near-identical variants of specific epitopes of interest — for example, to identify microbial mimics of a known T cell epitope that differ by one or two residues. For these targeted use cases, Daedalus provides `gen_variants.py`, a utility that generates a FASTA file of all sequences within a given Hamming distance of one or more query epitopes. This variant FASTA can then be used directly as input to `ac_match.py` for exact matching, with full provenance encoded in the sequence headers.
+We recognise that users may wish to search for near-identical variants of specific epitopes of interest — for example, to identify microbial mimics of a known T cell epitope that differ by one or two residues. For these targeted use cases, AntigenSoup provides `gen_variants.py`, a utility that generates a FASTA file of all sequences within a given Hamming distance of one or more query epitopes. This variant FASTA can then be used directly as input to `ac_match.py` for exact matching, with full provenance encoded in the sequence headers.
 
 This approach is intentionally kept as a separate, opt-in step rather than a built-in mismatch mode. Variant expansion should only be applied to specific epitopes a user has prior reason to care about — not applied globally — in order to keep false positive rates under control.
 
@@ -44,7 +44,7 @@ CIINFEKL
 This encodes the original epitope name, the Hamming distance, the exact substitutions (position and amino acid change), and the original sequence — so downstream analysis can easily filter by distance or identify which positions tolerate substitution.
 
 ## **Overview**
-**Daedalus** assembles metagenomes, predicts genes, and identifies cross-reactive epitopes from metagenomic data. It integrates:
+**AntigenSoup** assembles metagenomes, predicts genes, and identifies cross-reactive epitopes from metagenomic data. It integrates:
 
 - **SRA-Tools** - for downloading sequenceing data from the SRA (optional)
 - **fastp** - for read quality control and filtering
@@ -54,7 +54,7 @@ This encodes the original epitope name, the Hamming distance, the exact substitu
 - **Aho-Corasick algorithm** – for searching epitope sequences  
 - **Pigz** – for compressing output  
 
-Everything is wrapped into a single executable: daedalus. You can simply give daedalus an SRA ID and it will return a list of epitopes identified in that sample post-assembly.
+Everything is wrapped into a single executable: AntigenSoup. You can simply give AntigenSoup an SRA ID and it will return a list of epitopes identified in that sample post-assembly.
 
 ## **Pipeline Workflow**
 
@@ -83,41 +83,41 @@ Everything is wrapped into a single executable: daedalus. You can simply give da
 
 ### **1. Clone the repository**
 ```bash
-git clone https://github.com/feargalr/Daedalus.git
-cd Daedalus
+git clone https://github.com/feargalr/AntigenSoup.git
+cd AntigenSoup
 ```
 
 ### **2. Install dependencies**
 ```bash
 
 #First create conda envs
-conda env create -f conda_ymls/daedalus_env.yml
+conda env create -f conda_ymls/AntigenSoup_env.yml
 conda env create -f conda_ymls/acmatch_env.yml
 
-#Second ensure daedalus scripts are in paths for individual envs
-conda activate daedalus
-cp daedalus "$CONDA_PREFIX/bin/daedalus"
+#Second ensure AntigenSoup scripts are in paths for individual envs
+conda activate AntigenSoup
+cp AntigenSoup "$CONDA_PREFIX/bin/AntigenSoup"
 
 conda activate acmatch
-mkdir -p "$CONDA_PREFIX/share/daedalus"
-cp scripts/ac_match.py "$CONDA_PREFIX/share/daedalus/ac_match.py"
-cp scripts/gen_variants.py "$CONDA_PREFIX/share/daedalus/gen_variants.py"
+mkdir -p "$CONDA_PREFIX/share/AntigenSoup"
+cp scripts/ac_match.py "$CONDA_PREFIX/share/AntigenSoup/ac_match.py"
+cp scripts/gen_variants.py "$CONDA_PREFIX/share/AntigenSoup/gen_variants.py"
 
 
 #Third.For multi-threaded gene prediction we use the parallel-prodigal-gv.py
 git clone https://github.com/apcamargo/prodigal-gv
-conda activate daedalus
-mkdir -p "$CONDA_PREFIX/share/daedalus"
-cp prodigal-gv/parallel-prodigal-gv.py "$CONDA_PREFIX/share/daedalus/parallel-prodigal-gv.py"
+conda activate AntigenSoup
+mkdir -p "$CONDA_PREFIX/share/AntigenSoup"
+cp prodigal-gv/parallel-prodigal-gv.py "$CONDA_PREFIX/share/AntigenSoup/parallel-prodigal-gv.py"
 
 # Fourth. Download the nohuman db
-conda activate daedalus
+conda activate AntigenSoup
 nohuman --download --db /example_directory/nohuman_db
 
 # Add this to your ~/.bashrc (or ~/.zshrc)
 export NOHUMAN_DB="/example_directory/nohuman_db"
 
-# Fifth. Uncompress / prepare your epitope database for Daedalus
+# Fifth. Uncompress / prepare your epitope database for AntigenSoup
 gunzip iedb.fasta.gz
 
 #Alternatively prepare your own database of sequences. 
@@ -128,8 +128,8 @@ gunzip iedb.fasta.gz
 ## **Usage**
 ```bash
 Usage:
-  daedalus -e <epitope_fasta> -n <num_cores> -m <memory_gb> [--sra <SRA_ID>] [--read1 <read1.fastq.gz> --read2 <read2.fastq.gz>]
-  daedalus -e <epitope_fasta> -n <num_cores> --scaffolds <scaffolds.fasta>
+  AntigenSoup -e <epitope_fasta> -n <num_cores> -m <memory_gb> [--sra <SRA_ID>] [--read1 <read1.fastq.gz> --read2 <read2.fastq.gz>]
+  AntigenSoup -e <epitope_fasta> -n <num_cores> --scaffolds <scaffolds.fasta>
 
 Flags:
   -e, --epitopes        Path to epitope FASTA file (required)
@@ -151,9 +151,9 @@ Notes:
   Output is written to <scaffolds_basename>_output/.
 
 Examples:
-  daedalus --sra SRR123456 -e epitopes.fasta -n 32 -m 64
-  daedalus --read1 sample_1.fastq.gz --read2 sample_2.fastq.gz -e epitopes.fasta -n 16 -m 32
-  daedalus --scaffolds my_assembly.fasta -e epitopes.fasta -n 16
+  AntigenSoup --sra SRR123456 -e epitopes.fasta -n 32 -m 64
+  AntigenSoup --read1 sample_1.fastq.gz --read2 sample_2.fastq.gz -e epitopes.fasta -n 16 -m 32
+  AntigenSoup --scaffolds my_assembly.fasta -e epitopes.fasta -n 16
 ```
 
 ## **Inputs**
