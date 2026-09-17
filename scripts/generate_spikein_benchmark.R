@@ -18,7 +18,8 @@
 # Requires: R with Biostrings (Bioconductor) and data.table (CRAN).
 # See docs/spikein_benchmark.md.
 
-VERSION <- "1.0.0"
+## Tracks the AntigenSoup release version; see CHANGELOG.md.
+VERSION <- "0.5.1"
 
 suppressPackageStartupMessages({
   library(Biostrings)

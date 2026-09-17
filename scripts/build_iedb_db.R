@@ -15,7 +15,8 @@
 # Requires: R with data.table, plus the `curl` and `unzip` commands.
 # Rationale for every default is in docs/iedb_database_build.md.
 
-VERSION <- "1.0.0"
+## Tracks the AntigenSoup release version; see CHANGELOG.md.
+VERSION <- "0.5.1"
 
 suppressPackageStartupMessages(library(data.table))
 

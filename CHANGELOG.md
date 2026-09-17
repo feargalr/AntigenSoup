@@ -1,5 +1,16 @@
 # Changelog
 
+Version strings live in five files and must be bumped together: `antigensoup`,
+`README.md`, `CITATION.cff`, `scripts/build_iedb_db.R` and
+`scripts/generate_spikein_benchmark.R`.
+
+## v0.5.1
+- Aligned the version reported by `scripts/build_iedb_db.R` and
+  `scripts/generate_spikein_benchmark.R` with the release version. Both declared
+  1.0.0 independently, which appeared in `--help` and, more importantly, in the
+  `script_version` field of the build report and benchmark manifest. A provenance
+  record should not name a version that does not exist.
+
 ## v0.5.0
 - Removed the bundled `iedb.fasta.gz`. The database is now built from the current
   IEDB release with `scripts/build_iedb_db.R`, which records the release it used

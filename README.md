@@ -1,5 +1,5 @@
 # AntigenSoup
-**Version:** 0.5.0
+**Version:** 0.5.1
 
 This pipeline was built for metagenomic assembly and the identification of cross-reactive epitopes in the human microbiome. AntigenSoup is a wrapper pipeline that orchestrates several established bioinformatics tools, and so we *strongly encourage* users cite the underlying software components appropriately in any resulting publications.
 

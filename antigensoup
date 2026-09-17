@@ -2,7 +2,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-ANTIGENSOUP_VERSION="0.5.0"
+ANTIGENSOUP_VERSION="0.5.1"
 
 
 #======================#
