@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.0
+- Removed the bundled `iedb.fasta.gz`. The database is now built from the current
+  IEDB release with `scripts/build_iedb_db.R`, which records the release it used
+  and every filter applied. The bundled file had no such record and, as a result
+  of being assembled from two separate length queries, contained no 12mers at all
+  despite IEDB holding 267,718 of them. It remains retrievable from the git history
+  (`git show 396d94b:iedb.fasta.gz`) for anyone needing to reproduce older results.
+- Install instructions now build the database instead of unzipping the bundled one.
+
 ## v0.4.0
 - Renamed the pipeline executable from `daedalus` to `antigensoup`, along with its
   conda environment, install paths and user-facing messages. This also fixes the

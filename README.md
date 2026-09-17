@@ -1,5 +1,5 @@
 # AntigenSoup
-**Version:** 0.4.0
+**Version:** 0.5.0
 
 This pipeline was built for metagenomic assembly and the identification of cross-reactive epitopes in the human microbiome. AntigenSoup is a wrapper pipeline that orchestrates several established bioinformatics tools, and so we *strongly encourage* users cite the underlying software components appropriately in any resulting publications.
 
@@ -7,7 +7,19 @@ AntigenSoup searches for short, exact peptide matches between predicted microbia
 To efficiently detect these matches at scale, AntigenSoup uses the Aho–Corasick algorithm, which enables simultaneous, exact matching of millions of epitope sequences against large protein databases in a single pass.
 
 ## **Database**
-We provide a fasta file of epitope sequences from the the Immune Epitope Database (IEDB) in late 2025 for ease of use. This is not the entire database but is filtered for human, or human related pathogens. Uncompress before use. It is small (~13MB uncompressed).
+The epitope database is built from the current IEDB release with
+`scripts/build_iedb_db.R`, rather than shipped as a file in this repository. A
+build takes about five minutes and records exactly which IEDB release it came
+from and how it was filtered, so results stay traceable.
+
+Earlier versions bundled a pre-filtered `iedb.fasta.gz`. It was removed in v0.5.0
+because it carried no record of how it had been filtered, and was missing whole
+peptide lengths as a result. It remains in the git history if you need it for
+comparison; the last commit that shipped it is `396d94b`:
+
+```bash
+git show 396d94b:iedb.fasta.gz > iedb.fasta.gz
+```
 
 ### Building a database from the current IEDB release
 
@@ -192,8 +204,8 @@ nohuman --download --db /example_directory/nohuman_db
 # Add this to your ~/.bashrc (or ~/.zshrc)
 export NOHUMAN_DB="/example_directory/nohuman_db"
 
-# Fifth. Uncompress / prepare your epitope database for AntigenSoup
-gunzip iedb.fasta.gz
+# Fifth. Build your epitope database (needs R with data.table)
+Rscript scripts/build_iedb_db.R --outdir databases/iedb
 
 #Alternatively prepare your own database of sequences. 
 
