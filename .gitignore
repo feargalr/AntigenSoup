@@ -174,3 +174,6 @@ cython_debug/
 
 # AntigenSoup epitope databases built by scripts/build_iedb_db.R
 databases/
+
+# Spike-in benchmarks built by scripts/generate_spikein_benchmark.R
+benchmark_spikein/

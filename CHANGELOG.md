@@ -13,6 +13,14 @@
   complexity, deduplicated, with a metadata TSV and a build report. Replaces the
   manually assembled `iedb.fasta.gz`, which had no record of its own filtering and
   contained no 12mers at all. Documented in `docs/iedb_database_build.md`.
+- Added `scripts/generate_spikein_benchmark.R`, which builds artificial epitope
+  spike-in benchmarks for sensitivity and specificity testing. Artificial peptides
+  are composition-matched shuffles of retained IEDB epitopes, proven absent from
+  both the database and the target proteins before insertion at recorded positions.
+  Documented in `docs/spikein_benchmark.md`, including the recorded validation run
+  against the E. coli K-12 reference proteome: 1000 spikes, 13/13 internal checks,
+  100% recovery by `ac_match.py` at the correct protein and coordinate, and zero
+  hits against the unspiked proteome.
 
 ## v0.3.3
 - Added gen variants script, scaffolds as input. 

@@ -60,6 +60,30 @@ See [docs/iedb_database_build.md](docs/iedb_database_build.md) for the biologica
 rationale behind each default filter, what the evidence categories mean, and a
 description of every output column.
 
+### Benchmarking detection with artificial spike-ins
+
+`scripts/generate_spikein_benchmark.R` builds a controlled benchmark for
+measuring sensitivity and specificity. It generates artificial peptides by
+shuffling real retained IEDB epitopes, proves each one is absent from both the
+epitope database and the input proteins, then inserts them at known positions:
+
+```bash
+Rscript scripts/generate_spikein_benchmark.R \
+    --iedb databases/iedb/iedb_antigensoup_<RELEASE>.tsv \
+    --fasta proteins.faa \
+    --n-spikes 1000 --seed 12345 \
+    --outdir benchmark_spikein
+```
+
+This writes a spiked protein FASTA, an epitope FASTA usable directly as `-e`, a
+ground-truth table with 1-based coordinates, and a manifest. Because every
+insertion is exact and provably novel, recovery should be 100% and any miss is a
+true false negative. Amino-acid sequences only.
+
+See [docs/spikein_benchmark.md](docs/spikein_benchmark.md) for coordinate
+semantics, options, and the recorded validation run against the E. coli K-12
+reference proteome (1000 spikes, 100% recovery, zero false positives).
+
 ## **Epitope Matching Strategy**
 
 ### Exact matching at scale
