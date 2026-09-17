@@ -1,5 +1,6 @@
 # AntigenSoup
-**Version:** 0.5.1
+See [Releases](https://github.com/feargalr/AntigenSoup/releases) for the current
+version, and [CHANGELOG.md](CHANGELOG.md) for what changed.
 
 This pipeline was built for metagenomic assembly and the identification of cross-reactive epitopes in the human microbiome. AntigenSoup is a wrapper pipeline that orchestrates several established bioinformatics tools, and so we *strongly encourage* users cite the underlying software components appropriately in any resulting publications.
 
@@ -184,6 +185,8 @@ conda env create -f conda_ymls/acmatch_env.yml
 #Second ensure AntigenSoup scripts are in paths for individual envs
 conda activate antigensoup
 cp antigensoup "$CONDA_PREFIX/bin/antigensoup"
+mkdir -p "$CONDA_PREFIX/share/antigensoup"
+cp VERSION "$CONDA_PREFIX/share/antigensoup/VERSION"
 
 conda activate acmatch
 mkdir -p "$CONDA_PREFIX/share/antigensoup"

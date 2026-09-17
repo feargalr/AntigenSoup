@@ -2,7 +2,19 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-ANTIGENSOUP_VERSION="0.5.1"
+# Version comes from the VERSION file at the repository root, which is the single
+# source of truth. Candidates cover a repo checkout and the conda layout, where
+# the executable sits in bin/ and VERSION is copied to share/antigensoup/.
+_as_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ANTIGENSOUP_VERSION="unknown"
+for _as_v in "$_as_dir/VERSION" "$_as_dir/../VERSION" \
+             "$_as_dir/../share/antigensoup/VERSION"; do
+  if [[ -r "$_as_v" ]]; then
+    ANTIGENSOUP_VERSION="$(head -n1 "$_as_v" | tr -d '[:space:]')"
+    break
+  fi
+done
+unset _as_dir _as_v
 
 
 #======================#

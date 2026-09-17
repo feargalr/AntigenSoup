@@ -18,8 +18,22 @@
 # Requires: R with Biostrings (Bioconductor) and data.table (CRAN).
 # See docs/spikein_benchmark.md.
 
-## Tracks the AntigenSoup release version; see CHANGELOG.md.
-VERSION <- "0.5.1"
+## Version comes from the VERSION file at the repository root, the single source
+## of truth. Reported in --help and written to the provenance record, so it falls
+## back to "unknown" rather than to a stale hard-coded string.
+read_version <- function() {
+  a <- grep("^--file=", commandArgs(FALSE), value = TRUE)
+  here <- if (length(a)) dirname(normalizePath(sub("^--file=", "", a[1]), mustWork = FALSE)) else NA
+  cand <- c(if (!is.na(here)) file.path(dirname(here), "VERSION"),
+            if (!is.na(here)) file.path(here, "VERSION"),
+            file.path(getwd(), "VERSION"))
+  for (f in cand) if (file.exists(f)) {
+    v <- trimws(readLines(f, warn = FALSE)[1])
+    if (nzchar(v)) return(v)
+  }
+  "unknown"
+}
+VERSION <- read_version()
 
 suppressPackageStartupMessages({
   library(Biostrings)

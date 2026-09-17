@@ -1,8 +1,8 @@
 # Changelog
 
-Version strings live in five files and must be bumped together: `antigensoup`,
-`README.md`, `CITATION.cff`, `scripts/build_iedb_db.R` and
-`scripts/generate_spikein_benchmark.R`.
+The version lives in the `VERSION` file at the repository root. `antigensoup` and
+both R scripts read it at runtime. `CITATION.cff` is a static file and carries its
+own copy, so a release bumps those two files and nothing else.
 
 ## v0.5.1
 - Aligned the version reported by `scripts/build_iedb_db.R` and
