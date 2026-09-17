@@ -7,6 +7,12 @@
   still looked for the old ones.
 - Fixed `CITATION.cff`, which still named the project Daedalus and pointed at the
   old repository.
+- Added `scripts/build_iedb_db.R`, which builds the epitope database directly from
+  the current IEDB export: linear 8-25mer peptides with positive experimental
+  T-cell or B-cell evidence, filtered for amino-acid alphabet and sequence
+  complexity, deduplicated, with a metadata TSV and a build report. Replaces the
+  manually assembled `iedb.fasta.gz`, which had no record of its own filtering and
+  contained no 12mers at all. Documented in `docs/iedb_database_build.md`.
 
 ## v0.3.3
 - Added gen variants script, scaffolds as input. 

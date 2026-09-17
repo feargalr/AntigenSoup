@@ -9,6 +9,57 @@ To efficiently detect these matches at scale, AntigenSoup uses the Aho–Corasic
 ## **Database**
 We provide a fasta file of epitope sequences from the the Immune Epitope Database (IEDB) in late 2025 for ease of use. This is not the entire database but is filtered for human, or human related pathogens. Uncompress before use. It is small (~13MB uncompressed).
 
+### Building a database from the current IEDB release
+
+`scripts/build_iedb_db.R` rebuilds the epitope database from the current IEDB
+database export. One command, no manual downloads:
+
+```bash
+Rscript scripts/build_iedb_db.R --outdir databases/iedb
+```
+
+It fetches the IEDB export, keeps linear peptides with positive experimental
+T cell or B cell evidence, filters on length, amino-acid alphabet and sequence
+complexity, collapses duplicate sequences while aggregating their evidence, and
+writes three files:
+
+- `iedb_antigensoup_<RELEASE>.fasta` — the database, ready for `-e`
+- `iedb_antigensoup_<RELEASE>.tsv` — one metadata row per FASTA record
+- `iedb_antigensoup_<RELEASE>.report.txt` — provenance, settings and retention counts
+
+The FASTA drops straight into the pipeline:
+
+```bash
+antigensoup --scaffolds my_assembly.fasta -e databases/iedb/iedb_antigensoup_<RELEASE>.fasta -n 16
+```
+
+Headers are short, stable identifiers, so `ac_match.py` output stays readable and
+joins back to the metadata TSV on `epitope_ids`:
+
+```
+>AS_0000001
+AAAACTTMK
+```
+
+Defaults build the recommended database with no extra arguments. To vary it:
+
+```bash
+--include-mhc-only        # also include eluted / binding-only MHC ligands
+--max-length 50           # broader database for longer linear B cell epitopes
+--natural-only            # also drop neo-epitopes
+--include-low-complexity  # skip the complexity filter
+--force-download          # refresh the cached IEDB export
+```
+
+**Requirements:** R with `data.table` (`install.packages("data.table")`), plus the
+`curl` and `unzip` commands. Nothing else. A build takes about 5 minutes, uses
+~6GB of memory, and caches ~530MB of IEDB archives in `<outdir>/source` for
+reuse, so rerunning with the same `--outdir` does not re-download.
+
+See [docs/iedb_database_build.md](docs/iedb_database_build.md) for the biological
+rationale behind each default filter, what the evidence categories mean, and a
+description of every output column.
+
 ## **Epitope Matching Strategy**
 
 ### Exact matching at scale

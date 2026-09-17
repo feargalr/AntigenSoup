@@ -171,3 +171,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# AntigenSoup epitope databases built by scripts/build_iedb_db.R
+databases/
