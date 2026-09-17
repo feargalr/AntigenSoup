@@ -5,6 +5,10 @@ both R scripts read it at runtime. `CITATION.cff` is a static file and carries i
 own copy, so a release bumps those two files and nothing else.
 
 ## v0.5.1
+- `antigensoup --help` and `--version` now work without conda installed. The
+  conda bootstrap ran before argument parsing, so the script could not be
+  inspected before being installed. Running it with no arguments now prints
+  usage instead of a conda error.
 - Aligned the version reported by `scripts/build_iedb_db.R` and
   `scripts/generate_spikein_benchmark.R` with the release version. Both declared
   1.0.0 independently, which appeared in `--help` and, more importantly, in the

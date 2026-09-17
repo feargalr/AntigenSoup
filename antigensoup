@@ -16,6 +16,64 @@ for _as_v in "$_as_dir/VERSION" "$_as_dir/../VERSION" \
 done
 unset _as_dir _as_v
 
+#===========================================================#
+# Introspection, before any dependency check
+#===========================================================#
+#
+# --help and --version have to work on a bare checkout, with no conda installed
+# and no environments created. The conda bootstrap below would otherwise abort
+# first, making the script impossible to inspect before installing it.
+
+show_help() {
+    echo "
+AntigenSoup Pipeline
+
+Usage:
+  antigensoup -e <epitope_fasta> -n <num_cores> -m <memory_gb> [--sra <SRA_ID>] [--read1 <read1.fastq.gz> --read2 <read2.fastq.gz>]
+  antigensoup -e <epitope_fasta> -n <num_cores> --scaffolds <scaffolds.fasta>
+
+Flags:
+  -e, --epitopes        Path to epitope FASTA file (required)
+  -n, --num-cores       Number of cores (default: 1)
+  -m, --memory          Memory in GB (default: 8)
+  --sra <SRA_ID>        SRA accession ID (optional)
+  --read1 <file>        Path to local R1 FASTQ file (required if no SRA)
+  --read2 <file>        Path to local R2 FASTQ file (required if no SRA)
+  --scaffolds <file>    Path to pre-assembled scaffolds FASTA (skips QC, host removal, and assembly)
+  --nohuman-db <path>   Path to nohuman database (or set \$NOHUMAN_DB)
+  -h, --help            Show this help message
+  -V, --version         Print version and exit
+
+Notes:
+- If --sra is provided, local --read1 and --read2 are ignored.
+- If no SRA is provided, both --read1 and --read2 must be specified.
+- If --scaffolds is provided, all upstream steps (fastp, nohuman, SPAdes) are skipped.
+  --nohuman-db is not required in this mode.
+
+Examples:
+  antigensoup --sra SRR123456 -e epitopes.fasta -n 32 -m 64
+  antigensoup --read1 sample_1.fastq.gz --read2 sample_2.fastq.gz -e epitopes.fasta -n 16 -m 32
+  antigensoup --scaffolds my_assembly.fasta -e epitopes.fasta -n 16
+"
+}
+
+# ${@+"$@"} rather than "$@": bash 3.2 with `set -u` errors on the latter when
+# there are no arguments, and macOS still ships bash 3.2.
+for _as_arg in ${@+"$@"}; do
+  case "$_as_arg" in
+    -h|--help)    show_help; exit 0 ;;
+    -V|--version) echo "AntigenSoup ${ANTIGENSOUP_VERSION}"; exit 0 ;;
+  esac
+done
+unset _as_arg
+
+# Run with no arguments, show usage rather than complaining about conda.
+if [[ "$#" -eq 0 ]]; then
+  show_help
+  exit 1
+fi
+
+
 
 #======================#
 # Handling dependancies
@@ -68,38 +126,6 @@ SCAFFOLDS_INPUT=""
 FASTP_DIR="fastp_output"
 
 # Help message
-show_help() {
-    echo "
-AntigenSoup Pipeline
-
-Usage:
-  antigensoup -e <epitope_fasta> -n <num_cores> -m <memory_gb> [--sra <SRA_ID>] [--read1 <read1.fastq.gz> --read2 <read2.fastq.gz>]
-  antigensoup -e <epitope_fasta> -n <num_cores> --scaffolds <scaffolds.fasta>
-
-Flags:
-  -e, --epitopes        Path to epitope FASTA file (required)
-  -n, --num-cores       Number of cores (default: 1)
-  -m, --memory          Memory in GB (default: 8)
-  --sra <SRA_ID>        SRA accession ID (optional)
-  --read1 <file>        Path to local R1 FASTQ file (required if no SRA)
-  --read2 <file>        Path to local R2 FASTQ file (required if no SRA)
-  --scaffolds <file>    Path to pre-assembled scaffolds FASTA (skips QC, host removal, and assembly)
-  --nohuman-db <path>   Path to nohuman database (or set \$NOHUMAN_DB)
-  -h, --help            Show this help message
-  -V, --version         Print version and exit
-
-Notes:
-- If --sra is provided, local --read1 and --read2 are ignored.
-- If no SRA is provided, both --read1 and --read2 must be specified.
-- If --scaffolds is provided, all upstream steps (fastp, nohuman, SPAdes) are skipped.
-  --nohuman-db is not required in this mode.
-
-Examples:
-  antigensoup --sra SRR123456 -e epitopes.fasta -n 32 -m 64
-  antigensoup --read1 sample_1.fastq.gz --read2 sample_2.fastq.gz -e epitopes.fasta -n 16 -m 32
-  antigensoup --scaffolds my_assembly.fasta -e epitopes.fasta -n 16
-"
-}
 
 # Parse flags
 while [[ "$#" -gt 0 ]]; do
