@@ -1,5 +1,5 @@
 # AntigenSoup
-**Version:** 0.3.3
+**Version:** 0.4.0
 
 This pipeline was built for metagenomic assembly and the identification of cross-reactive epitopes in the human microbiome. AntigenSoup is a wrapper pipeline that orchestrates several established bioinformatics tools, and so we *strongly encourage* users cite the underlying software components appropriately in any resulting publications.
 
@@ -54,7 +54,7 @@ This encodes the original epitope name, the Hamming distance, the exact substitu
 - **Aho-Corasick algorithm** – for searching epitope sequences  
 - **Pigz** – for compressing output  
 
-Everything is wrapped into a single executable: AntigenSoup. You can simply give AntigenSoup an SRA ID and it will return a list of epitopes identified in that sample post-assembly.
+Everything is wrapped into a single executable: `antigensoup`. You can simply give AntigenSoup an SRA ID and it will return a list of epitopes identified in that sample post-assembly.
 
 ## **Pipeline Workflow**
 
@@ -91,27 +91,27 @@ cd AntigenSoup
 ```bash
 
 #First create conda envs
-conda env create -f conda_ymls/AntigenSoup_env.yml
+conda env create -f conda_ymls/antigensoup_env.yml
 conda env create -f conda_ymls/acmatch_env.yml
 
 #Second ensure AntigenSoup scripts are in paths for individual envs
-conda activate AntigenSoup
-cp AntigenSoup "$CONDA_PREFIX/bin/AntigenSoup"
+conda activate antigensoup
+cp antigensoup "$CONDA_PREFIX/bin/antigensoup"
 
 conda activate acmatch
-mkdir -p "$CONDA_PREFIX/share/AntigenSoup"
-cp scripts/ac_match.py "$CONDA_PREFIX/share/AntigenSoup/ac_match.py"
-cp scripts/gen_variants.py "$CONDA_PREFIX/share/AntigenSoup/gen_variants.py"
+mkdir -p "$CONDA_PREFIX/share/antigensoup"
+cp scripts/ac_match.py "$CONDA_PREFIX/share/antigensoup/ac_match.py"
+cp scripts/gen_variants.py "$CONDA_PREFIX/share/antigensoup/gen_variants.py"
 
 
 #Third.For multi-threaded gene prediction we use the parallel-prodigal-gv.py
 git clone https://github.com/apcamargo/prodigal-gv
-conda activate AntigenSoup
-mkdir -p "$CONDA_PREFIX/share/AntigenSoup"
-cp prodigal-gv/parallel-prodigal-gv.py "$CONDA_PREFIX/share/AntigenSoup/parallel-prodigal-gv.py"
+conda activate antigensoup
+mkdir -p "$CONDA_PREFIX/share/antigensoup"
+cp prodigal-gv/parallel-prodigal-gv.py "$CONDA_PREFIX/share/antigensoup/parallel-prodigal-gv.py"
 
 # Fourth. Download the nohuman db
-conda activate AntigenSoup
+conda activate antigensoup
 nohuman --download --db /example_directory/nohuman_db
 
 # Add this to your ~/.bashrc (or ~/.zshrc)
@@ -128,8 +128,8 @@ gunzip iedb.fasta.gz
 ## **Usage**
 ```bash
 Usage:
-  AntigenSoup -e <epitope_fasta> -n <num_cores> -m <memory_gb> [--sra <SRA_ID>] [--read1 <read1.fastq.gz> --read2 <read2.fastq.gz>]
-  AntigenSoup -e <epitope_fasta> -n <num_cores> --scaffolds <scaffolds.fasta>
+  antigensoup -e <epitope_fasta> -n <num_cores> -m <memory_gb> [--sra <SRA_ID>] [--read1 <read1.fastq.gz> --read2 <read2.fastq.gz>]
+  antigensoup -e <epitope_fasta> -n <num_cores> --scaffolds <scaffolds.fasta>
 
 Flags:
   -e, --epitopes        Path to epitope FASTA file (required)
@@ -151,9 +151,9 @@ Notes:
   Output is written to <scaffolds_basename>_output/.
 
 Examples:
-  AntigenSoup --sra SRR123456 -e epitopes.fasta -n 32 -m 64
-  AntigenSoup --read1 sample_1.fastq.gz --read2 sample_2.fastq.gz -e epitopes.fasta -n 16 -m 32
-  AntigenSoup --scaffolds my_assembly.fasta -e epitopes.fasta -n 16
+  antigensoup --sra SRR123456 -e epitopes.fasta -n 32 -m 64
+  antigensoup --read1 sample_1.fastq.gz --read2 sample_2.fastq.gz -e epitopes.fasta -n 16 -m 32
+  antigensoup --scaffolds my_assembly.fasta -e epitopes.fasta -n 16
 ```
 
 ## **Inputs**

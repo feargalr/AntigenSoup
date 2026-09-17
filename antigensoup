@@ -2,18 +2,18 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-DAEDALUS_VERSION="0.3.3"
+ANTIGENSOUP_VERSION="0.4.0"
 
 
 #======================#
 # Handling dependancies
 #======================#
 
-DAEDALUS_ENV="daedalus"
+ANTIGENSOUP_ENV="antigensoup"
 ACMATCH_ENV="acmatch"
 
 error() {
-  echo "Daedalus error: $*" >&2
+  echo "AntigenSoup error: $*" >&2
   exit 1
 }
 
@@ -27,18 +27,18 @@ source "$(conda info --base)/etc/profile.d/conda.sh" \
   || error "Failed to source conda.sh"
 
 # ---- Check required environments ----
-for ENV in "$DAEDALUS_ENV" "$ACMATCH_ENV"; do
+for ENV in "$ANTIGENSOUP_ENV" "$ACMATCH_ENV"; do
   if ! conda env list | awk '{print $1}' | grep -qx "$ENV"; then
     error "Required conda environment '$ENV' does not exist"
   fi
 done
 
 # ---- Activate primary env ----
-conda activate "$DAEDALUS_ENV" \
-  || error "Failed to activate conda environment '$DAEDALUS_ENV'"
+conda activate "$ANTIGENSOUP_ENV" \
+  || error "Failed to activate conda environment '$ANTIGENSOUP_ENV'"
 
-echo "Daedalus v$DAEDALUS_VERSION"
-echo "Active env: $DAEDALUS_ENV ($(python --version))"
+echo "AntigenSoup v$ANTIGENSOUP_VERSION"
+echo "Active env: $ANTIGENSOUP_ENV ($(python --version))"
 
 
 #=======================
@@ -58,11 +58,11 @@ FASTP_DIR="fastp_output"
 # Help message
 show_help() {
     echo "
-Daedalus Pipeline
+AntigenSoup Pipeline
 
 Usage:
-  daedalus -e <epitope_fasta> -n <num_cores> -m <memory_gb> [--sra <SRA_ID>] [--read1 <read1.fastq.gz> --read2 <read2.fastq.gz>]
-  daedalus -e <epitope_fasta> -n <num_cores> --scaffolds <scaffolds.fasta>
+  antigensoup -e <epitope_fasta> -n <num_cores> -m <memory_gb> [--sra <SRA_ID>] [--read1 <read1.fastq.gz> --read2 <read2.fastq.gz>]
+  antigensoup -e <epitope_fasta> -n <num_cores> --scaffolds <scaffolds.fasta>
 
 Flags:
   -e, --epitopes        Path to epitope FASTA file (required)
@@ -83,9 +83,9 @@ Notes:
   --nohuman-db is not required in this mode.
 
 Examples:
-  daedalus --sra SRR123456 -e epitopes.fasta -n 32 -m 64
-  daedalus --read1 sample_1.fastq.gz --read2 sample_2.fastq.gz -e epitopes.fasta -n 16 -m 32
-  daedalus --scaffolds my_assembly.fasta -e epitopes.fasta -n 16
+  antigensoup --sra SRR123456 -e epitopes.fasta -n 32 -m 64
+  antigensoup --read1 sample_1.fastq.gz --read2 sample_2.fastq.gz -e epitopes.fasta -n 16 -m 32
+  antigensoup --scaffolds my_assembly.fasta -e epitopes.fasta -n 16
 "
 }
 
@@ -101,7 +101,7 @@ while [[ "$#" -gt 0 ]]; do
         --scaffolds) SCAFFOLDS_INPUT="$2"; shift ;;
         --nohuman-db) NOHUMAN_DB="$2"; shift ;;
         -h|--help) show_help; exit 0 ;;
-        -V|--version) echo "daedalus ${DAEDALUS_VERSION}"; exit 0 ;;
+        -V|--version) echo "AntigenSoup ${ANTIGENSOUP_VERSION}"; exit 0 ;;
         *) echo "Unknown parameter passed: $1"; show_help; exit 1 ;;
     esac
     shift
@@ -385,10 +385,10 @@ WORKDIR="${MYSCRATCH:-$PWD}/acmatch_${JOBTAG}_${SAMPLE}"
 mkdir -p "$WORKDIR"
 cp "$PROTEINS" "$WORKDIR/proteins.faa"
 
-ACMATCH_SCRIPT="$CONDA_PREFIX/share/daedalus/ac_match.py"
+ACMATCH_SCRIPT="$CONDA_PREFIX/share/antigensoup/ac_match.py"
 if [[ ! -f "$ACMATCH_SCRIPT" ]]; then
   echo "[ERROR] ac_match.py not found at $ACMATCH_SCRIPT"
-  echo "Did you install Daedalus correctly?"
+  echo "Did you install AntigenSoup correctly?"
   exit 1
 fi
 
@@ -405,7 +405,7 @@ rm -rf "$WORKDIR"
 # Compress heavy outputs (safe with nullglob)
 # ---------------------------
 msg "Compressing outputs..."
-conda activate daedalus
+conda activate "$ANTIGENSOUP_ENV"
 
 shopt -s nullglob
 to_compress=( "${SPADES_DIR}"/*.fasta "${SPADES_DIR}"/*.faa "${SPADES_DIR}"/*.fastg "${SPADES_DIR}"/*.gfa )
@@ -414,4 +414,4 @@ if (( ${#to_compress[@]} > 0 )); then
 fi
 shopt -u nullglob
 
-msg "Daedalus pipeline completed successfully!"
+msg "AntigenSoup pipeline completed successfully!"

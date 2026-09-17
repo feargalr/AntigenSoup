@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.0
+- Renamed the pipeline executable from `daedalus` to `antigensoup`, along with its
+  conda environment, install paths and user-facing messages. This also fixes the
+  install instructions, which already documented the new names while the wrapper
+  still looked for the old ones.
+- Fixed `CITATION.cff`, which still named the project Daedalus and pointed at the
+  old repository.
+
 ## v0.3.3
 - Added gen variants script, scaffolds as input. 
 
